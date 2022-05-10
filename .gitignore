@@ -1,3 +1,9 @@
 spack
 affinity
 gpu-bw
+*out
+
+*.*.swp
+*.*.swn
+*.*.swo
+*.*.swq

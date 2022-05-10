@@ -47,11 +47,22 @@ export OMPI_MCA_btl_smcuda_use_cuda_ipc=1
 
 echo "rank $GLOBAL_RANK:$LOCAL_RANK on $(hostname) gpu $CUDA_VISIBLE_DEVICES numa-node $NUMA_NODE nic $UCX_NET_DEVICES"
 
-for exe in osu_bw osu_latency
+for exe in osu_bw osu_bibw osu_latency
 do
+    ofile=${exe}_DD_out
+    numactl --cpunodebind=$NUMA_NODE --membind=$NUMA_NODE $exe --accelerator=cuda D D > $ofile
     if [ $GLOBAL_RANK == 0 ]
     then
-        printf "\nBENCHMARK: %s\n" "$exe"
+        printf "\n=== %s DD\n" "$exe"
+        awk 'BEGIN {first=1; printf("{\"size\": [");} /^[0-9]+/ {if (first) {printf("%s", $1); first=0;} else {printf(", %s", $1)}} END {printf("], ")}' $ofile
+        awk 'BEGIN {first=1; printf(" \"bw\": [");} /^[0-9]+/ {if (first) {printf("%s", $2); first=0;} else {printf(", %s", $2)}} END {printf("]}\n")}' $ofile
     fi
-    numactl --cpunodebind=$NUMA_NODE --membind=$NUMA_NODE $exe --accelerator=cuda D D
+    ofile=${exe}_HH_out
+    numactl --cpunodebind=$NUMA_NODE --membind=$NUMA_NODE $exe > $ofile
+    if [ $GLOBAL_RANK == 0 ]
+    then
+        printf "\n=== %s HH\n" "$exe"
+        awk 'BEGIN {first=1; printf("{\"size\": [");} /^[0-9]+/ {if (first) {printf("%s", $1); first=0;} else {printf(", %s", $1)}} END {printf("], ")}' $ofile
+        awk 'BEGIN {first=1; printf(" \"bw\": [");} /^[0-9]+/ {if (first) {printf("%s", $2); first=0;} else {printf(", %s", $2)}} END {printf("]}\n")}' $ofile
+    fi
 done
